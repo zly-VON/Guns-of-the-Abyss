@@ -42,10 +42,19 @@ public class RoomNodeSO : ScriptableObject
         // Start Region To Detect Popup Selection Changes
         EditorGUI.BeginChangeCheck();
 
-        // Display a pop-up using the RoomNodeType name values that can be selected
-        int selected = roomNodeTypeList.list.FindIndex(x => x == roomNodeType);
-        int selection = EditorGUILayout.Popup("", selected, GetRoomNodeTypesToDisplay());
-        roomNodeType = roomNodeTypeList.list[selection];
+        // if the room node has a parent or is of type entrance then display a label else display a popup
+        if (parentRoomNodeIDList.Count > 0 || roomNodeType.isEntrance)
+        {
+            // Display a label that can't be changed
+            EditorGUILayout.LabelField(roomNodeType.roomNodeTypeName);
+        }
+        else
+        {
+            // Display a pop-up using the RoomNodeType name values that can be selected
+            int selected = roomNodeTypeList.list.FindIndex(x => x == roomNodeType);
+            int selection = EditorGUILayout.Popup("", selected, GetRoomNodeTypesToDisplay());
+            roomNodeType = roomNodeTypeList.list[selection];
+        }
         
         if (EditorGUI.EndChangeCheck())
             EditorUtility.SetDirty(this);
@@ -178,7 +187,68 @@ public class RoomNodeSO : ScriptableObject
     // Add childID to the node
     public bool AddChildRoomNodeIDToRoomNode(string childID)
     {
-        childRoomNodeIDList.Add(childID);
+        if (IsChildRoomValid(childID))
+        {
+            childRoomNodeIDList.Add(childID);
+            return true;
+        }
+        return false;
+    }
+
+    public bool IsChildRoomValid(string childID)
+    {
+        bool isConnectedBossNodeAlready = false;
+        // Check if there is there already a connected boss room in the node graph
+        foreach (RoomNodeSO roomNode in roomNodeGraph.roomNodeList)
+        {
+            if (roomNode.roomNodeType.isBossRoom && roomNode.parentRoomNodeIDList.Count > 0)
+                isConnectedBossNodeAlready = true;
+        }
+
+        // if boss room already connected
+        if (roomNodeGraph.GetRoomNode(childID).roomNodeType.isBossRoom && isConnectedBossNodeAlready)
+            return false;
+
+        // if child is none
+        if (roomNodeGraph.GetRoomNode(childID).roomNodeType.isNone)
+            return false;
+
+        // if child already connected
+        if (childRoomNodeIDList.Contains(childID))
+            return false;
+
+        // if child and node are the same
+        if (id == childID)
+            return false;
+
+        // if child is already in parentID list
+        if (parentRoomNodeIDList.Contains(childID))
+            return false;
+
+        // if child node already has a parent
+        if (roomNodeGraph.GetRoomNode(childID).parentRoomNodeIDList.Count > 0)
+            return false;
+
+        // if both are corridor
+        if (roomNodeGraph.GetRoomNode(childID).roomNodeType.isCorridor && roomNodeType.isCorridor)
+            return false;
+
+        // if both are rooms
+        if (!roomNodeGraph.GetRoomNode(childID).roomNodeType.isCorridor && !roomNodeType.isCorridor)
+            return false;
+
+        // if more corridors than permitted
+        if (roomNodeGraph.GetRoomNode(childID).roomNodeType.isCorridor && childRoomNodeIDList.Count >= Settings.maxChildCorridors)
+            return false;
+
+        // entrance cannot be child
+        if (roomNodeGraph.GetRoomNode(childID).roomNodeType.isEntrance)
+            return false;
+
+        // corridor cannot have more than 1 child room
+        if (!roomNodeGraph.GetRoomNode(childID).roomNodeType.isCorridor && childRoomNodeIDList.Count > 0)
+            return false;
+
         return true;
     }
 
