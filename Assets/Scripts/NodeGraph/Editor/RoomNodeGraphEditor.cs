@@ -17,6 +17,7 @@ public class RoomNodeGraphEditor : EditorWindow
 
     // Connecting line values
     private const float connectingLineWidth = 3f;
+    private const float connectingLineArrowSize = 6f;
 
     [MenuItem("Room Node Graph Editor", menuItem = "Window/Dungeon Editor/Room Node Graph Editor")]
     private static void OpenWindow()
@@ -60,6 +61,7 @@ public class RoomNodeGraphEditor : EditorWindow
         {
             DrawDraggedLine();
             ProcessEvents(Event.current);
+            DrawRoomConnections();
             DrawRoomNodes();
         }
 
@@ -95,7 +97,6 @@ public class RoomNodeGraphEditor : EditorWindow
         }
         
     }
-
    
     // Check to see to mouse is over a room node if so then return the room node else return null
     private RoomNodeSO IsMouseOverRoomNode(Event currentEvent)
@@ -134,7 +135,6 @@ public class RoomNodeGraphEditor : EditorWindow
         }
     }
 
-
     // Process mouse down events on the room node graph (not over a node)
     private void ProcessMouseDownEvent(Event currentEvent)
     {
@@ -144,7 +144,6 @@ public class RoomNodeGraphEditor : EditorWindow
             ShowContextMenu(currentEvent.mousePosition);
         }
     }
-
 
     // Show the context menu
     private void ShowContextMenu(Vector2 mousePosition)
@@ -159,7 +158,6 @@ public class RoomNodeGraphEditor : EditorWindow
     {
         CreateRoomNode(mousePositionObject, roomNodeTypeList.list.Find(x => x.isNone));
     }
-
 
     // Create a room node at the mouse position - overloaded to also pass in RoomNodeType
     private void CreateRoomNode(object mousePositionObject, RoomNodeTypeSO roomNodeType)
@@ -179,6 +177,8 @@ public class RoomNodeGraphEditor : EditorWindow
         AssetDatabase.AddObjectToAsset(roomNode, currentRoomNodeGraph);
 
         AssetDatabase.SaveAssets();
+
+        currentRoomNodeGraph.OnValidate();
     }
 
     // Process mouse up events
@@ -187,7 +187,7 @@ public class RoomNodeGraphEditor : EditorWindow
         // if releasing the right mouse button and currently dragging a line
         if (currentEvent.button == 1 && currentRoomNodeGraph.roomNodeToDrawLineFrom != null)
         {
-            /*
+            
             // Check if over a room node
             RoomNodeSO roomNode = IsMouseOverRoomNode(currentEvent);
 
@@ -200,7 +200,7 @@ public class RoomNodeGraphEditor : EditorWindow
                     roomNode.AddParentRoomNodeIDToRoomNode(currentRoomNodeGraph.roomNodeToDrawLineFrom.id);
                 }
             }
-            */
+            
 
             ClearLineDrag();
         }
@@ -258,6 +258,61 @@ public class RoomNodeGraphEditor : EditorWindow
     {
         currentRoomNodeGraph.roomNodeToDrawLineFrom = null;
         currentRoomNodeGraph.linePosition = Vector2.zero;
+        GUI.changed = true;
+    }
+
+    // Draw connections in the graph window between room nodes
+    private void DrawRoomConnections()
+    {
+        // Loop through all room nodes
+        foreach (RoomNodeSO roomNode in currentRoomNodeGraph.roomNodeList)
+        {
+            if (roomNode.childRoomNodeIDList.Count > 0)
+            {
+                // Loop through child room nodes
+                foreach (string childRoomNodeID in roomNode.childRoomNodeIDList)
+                {
+                    // get child room node from dictionary
+                    if (currentRoomNodeGraph.roomNodeDictionary.ContainsKey(childRoomNodeID))
+                    {
+                        DrawConnectionLine(roomNode, currentRoomNodeGraph.roomNodeDictionary[childRoomNodeID]);
+
+                        GUI.changed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Draw connection line between the parent room node and child room node
+    private void DrawConnectionLine(RoomNodeSO parentRoomNode, RoomNodeSO childRoomNode)
+    {
+        // get line start and end position
+        Vector2 startPosition = parentRoomNode.rect.center;
+        Vector2 endPosition = childRoomNode.rect.center;
+
+        
+        // calculate midway point
+        Vector2 midPosition = (endPosition + startPosition) / 2f;
+
+        // Vector from start to end position of line
+        Vector2 direction = endPosition - startPosition;
+
+        // Calulate normalised perpendicular positions from the mid point
+        Vector2 arrowTailPoint1 = midPosition - new Vector2(-direction.y, direction.x).normalized * connectingLineArrowSize;
+        Vector2 arrowTailPoint2 = midPosition + new Vector2(-direction.y, direction.x).normalized * connectingLineArrowSize;
+
+        // Calculate mid point offset position for arrow head
+        Vector2 arrowHeadPoint = midPosition + direction.normalized * connectingLineArrowSize;
+
+        // Draw Arrow
+        Handles.DrawBezier(arrowHeadPoint, arrowTailPoint1, arrowHeadPoint, arrowTailPoint1, Color.white, null, connectingLineWidth);
+        Handles.DrawBezier(arrowHeadPoint, arrowTailPoint2, arrowHeadPoint, arrowTailPoint2, Color.white, null, connectingLineWidth);
+        
+
+        // Draw line
+        Handles.DrawBezier(startPosition, endPosition, startPosition, endPosition, Color.white, null, connectingLineWidth);
+
         GUI.changed = true;
     }
 
