@@ -50,10 +50,29 @@ public class RoomNodeSO : ScriptableObject
         }
         else
         {
-            // Display a pop-up using the RoomNodeType name values that can be selected
             int selected = roomNodeTypeList.list.FindIndex(x => x == roomNodeType);
+
             int selection = EditorGUILayout.Popup("", selected, GetRoomNodeTypesToDisplay());
+
             roomNodeType = roomNodeTypeList.list[selection];
+
+            // If the room type selection has changed making child connections potentially invalid
+            if (roomNodeTypeList.list[selected].isCorridor && !roomNodeTypeList.list[selection].isCorridor || !roomNodeTypeList.list[selected].isCorridor && roomNodeTypeList.list[selection].isCorridor || !roomNodeTypeList.list[selected].isBossRoom && roomNodeTypeList.list[selection].isBossRoom)
+            {
+                if (childRoomNodeIDList.Count > 0)
+                {
+                    for (int i = childRoomNodeIDList.Count - 1; i >= 0; i--)
+                    {
+                        RoomNodeSO childRoomNode = roomNodeGraph.GetRoomNode(childRoomNodeIDList[i]);
+
+                        if (childRoomNode != null)
+                        {
+                            RemoveChildRoomNodeIDFromRoomNode(childRoomNode.id);
+                            childRoomNode.RemoveParentRoomNodeIDFromRoomNode(id);
+                        } 
+                    }
+                }
+            }
         }
         
         if (EditorGUI.EndChangeCheck())
@@ -258,7 +277,28 @@ public class RoomNodeSO : ScriptableObject
         parentRoomNodeIDList.Add(parentID);
         return true;
     }
-    
+
+    /// Remove childID from the node
+    public bool RemoveChildRoomNodeIDFromRoomNode(string childID)
+    {
+        if (childRoomNodeIDList.Contains(childID))
+        {
+            childRoomNodeIDList.Remove(childID);
+            return true;
+        }
+        return false;
+    }
+
+    // Remove parentID from the node
+    public bool RemoveParentRoomNodeIDFromRoomNode(string parentID)
+    {
+        if (parentRoomNodeIDList.Contains(parentID))
+        {
+            parentRoomNodeIDList.Remove(parentID);
+            return true;
+        }
+        return false;
+    }
 
 #endif
     #endregion Editor Code

@@ -13,7 +13,6 @@ public class RoomNodeGraphSO : ScriptableObject
     private void Awake()
     {
         LoadRoomNodeDictionary();
-
     }
 
     // Load the room node dictionary from the room node list.
